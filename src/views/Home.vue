@@ -139,7 +139,6 @@ export default {
       const cacheID = [];
       this.axios.get(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`)
         .then((res) => {
-          console.log(res);
           const cacheData = res.data.data.carts;
           cacheData.forEach((item) => {
             cacheID.push(item.id);
@@ -153,7 +152,6 @@ export default {
           });
         }).then(() => {
           this.carData.forEach((item) => {
-            console.log(item);
             const cache = {
               product_id: item.product_id,
               qty: item.qty,
@@ -173,7 +171,6 @@ export default {
       const cacheID = [];
       this.axios.get(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`)
         .then((res) => {
-          console.log(res);
           const cacheData = res.data.data.carts;
           cacheData.forEach((item) => {
             cacheID.push(item.id);
