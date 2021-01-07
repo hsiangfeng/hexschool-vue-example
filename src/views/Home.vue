@@ -43,6 +43,10 @@
     <a href="http://" class="btn btn-primary" @click.prevent="postCarts"
       >送出購物車內容</a
     >
+    |
+    <a href="http://" class="btn btn-primary" @click.prevent="deleteLocalStorage"
+      >清空購物車(LocalStorage)</a
+    >
     <hr />
     <h2>購物車(遠端結果)</h2>
     <table class="table">
@@ -104,7 +108,10 @@ export default {
       const cacheCarID = []; // 暫存 ID 放置處
 
       // 一開始先將 carData 中的 ID 全部撈出來
-      this.carData.forEach((item) => cacheCarID.push(item.product_id));
+      this.carData.forEach((item, key) => {
+        console.log('key', key);
+        cacheCarID.push(item.product_id);
+      });
 
       // 接下來使用 indexOf 尋找傳進來的參數 ID 是否有在該陣列中
       // 若不存在則會回傳 -1 並加入到陣列儲存在 localStorage
@@ -118,19 +125,20 @@ export default {
         this.carData.push(cartContent);
         localStorage.setItem('carData', JSON.stringify(this.carData));
       } else {
+        let cache = {};
         this.carData.forEach((item, keys) => {
           if (item.product_id === data.id) {
             let { qty } = item;
-            const cache = {
+            cache = {
               product_id: data.id,
               qty: qty += 1,
               name: data.title,
             };
             this.carData.splice(keys, 1);
-            this.carData.push(cache);
-            localStorage.setItem('carData', JSON.stringify(this.carData));
           }
         });
+        this.carData.push(cache);
+        localStorage.setItem('carData', JSON.stringify(this.carData));
       }
     },
     postCarts() {
@@ -184,6 +192,10 @@ export default {
             });
           });
         });
+    },
+    deleteLocalStorage() {
+      localStorage.removeItem('carData');
+      this.carData = JSON.parse(localStorage.getItem('carData')) || [];
     },
   },
   created() {
