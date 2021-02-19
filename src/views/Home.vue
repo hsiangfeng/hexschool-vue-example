@@ -25,6 +25,8 @@
         <th>ID</th>
         <th>名稱</th>
         <th>數量</th>
+        <th>原始金額</th>
+        <th>販售金額</th>
       </thead>
       <tbody>
         <tr v-for="item in carData" :key="item.id">
@@ -37,16 +39,47 @@
           <td>
             {{ item.qty }}
           </td>
+          <td>
+            {{ item.origin_price }}
+          </td>
+          <td>
+            {{ item.price }}
+          </td>
         </tr>
       </tbody>
     </table>
-    <a href="http://" class="btn btn-primary" @click.prevent="postCarts"
-      >送出購物車內容</a
-    >
-    |
-    <a href="http://" class="btn btn-primary" @click.prevent="deleteLocalStorage"
-      >清空購物車(LocalStorage)</a
-    >
+    <h5>localStorage 金額：{{ localStoragePrice }}</h5>
+    <small>
+      以下功能將會同時將產品金額與 localStorage 金額通通改成 0。
+      <br />該區塊功能主要是說明，就算修改 localStorage
+      金額是不影響送出後的訂單金額，其主要原因實際計算金額還是在後端。
+    </small>
+    <div>
+      <a href="http://" class="btn btn-primary" @click.prevent="getLocalStorage"
+        >取得 LocalStorage 金額</a
+      >
+      |
+      <a
+        href="http://"
+        class="btn btn-primary"
+        @click.prevent="editLocalStorage"
+        >修改 LocalStorage 金額</a
+      >
+    </div>
+    <hr />
+    <h5>販售金額：{{ getPrice }}</h5>
+    <div>
+      <a href="http://" class="btn btn-primary" @click.prevent="postCarts"
+        >送出購物車內容</a
+      >
+      |
+      <a
+        href="http://"
+        class="btn btn-primary"
+        @click.prevent="deleteLocalStorage"
+        >清空購物車(LocalStorage)</a
+      >
+    </div>
     <hr />
     <h2>購物車(遠端結果)</h2>
     <table class="table">
@@ -69,6 +102,8 @@
         </tr>
       </tbody>
     </table>
+    <h5>final_total: {{ cartsFinalTotal }}</h5>
+    <h5>total: {{ cartsTotal }}</h5>
     <a href="http://" class="btn btn-primary" @click.prevent="deleteCarts"
       >清空購物車</a
     >
@@ -85,6 +120,9 @@ export default {
       data: [], // 產品列表資料放置處
       carts: [], // 購物車內容
       carData: JSON.parse(localStorage.getItem('carData')) || [], // localStorage 資料
+      localStoragePrice: 0, // localStorage 的金額
+      cartsFinalTotal: 0, // 遠端 final_total
+      cartsTotal: 0, // 遠端 total
     };
   },
   methods: {
@@ -103,6 +141,13 @@ export default {
       this.axios.get(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`)
         .then((res) => {
           this.carts = res.data.data.carts;
+
+          // 取得購物車金額
+          this.carts.forEach((item) => {
+            this.cartsTotal += Number(item.total);
+            this.cartsFinalTotal += Number(item.final_total);
+          });
+
           this.isLoading = false;
         });
     },
@@ -123,6 +168,8 @@ export default {
           product_id: data.id, // 產品 ID
           qty: 1, // 產品數量，預設一筆
           name: data.title, // 產品標題
+          origin_price: data.origin_price, // 產品原始金額
+          price: data.price, // 產品銷售金額
         };
         // 將數量推回陣列中
         this.carData.push(cartContent);
@@ -138,6 +185,8 @@ export default {
               product_id: data.id, // 產品 ID
               qty: qty += 1, // 產品當前數量，針對數量增加數量
               name: data.title, // 產品標題
+              origin_price: data.origin_price, // 產品原始金額
+              price: data.price, // 產品銷售金額
             };
             // 移除現有 localStorage 購物車的資料，否則 localStorage 會重複加入
             this.carData.splice(keys, 1);
@@ -209,6 +258,8 @@ export default {
               this.getCarts();
             });
           });
+          this.cartsFinalTotal = 0;
+          this.cartsTotal = 0;
         }).then(() => {
           this.isLoading = false;
         });
@@ -217,6 +268,50 @@ export default {
     deleteLocalStorage() {
       localStorage.removeItem('carData');
       this.carData = JSON.parse(localStorage.getItem('carData')) || [];
+      this.localStoragePrice = 0;
+    },
+    // 取得 localStorage 金額
+    getLocalStorage() {
+      this.localStoragePrice = 0;
+      const cacheLocalStorage = JSON.parse(localStorage.getItem('carData')) || [];
+
+      cacheLocalStorage.forEach((item) => {
+        this.localStoragePrice += Number(item.price * item.qty);
+      });
+    },
+    // 編輯 localStorage 金額並儲存回去 carData
+    editLocalStorage() {
+      const cacheLocalStorage = JSON.parse(localStorage.getItem('carData')) || [];
+
+      cacheLocalStorage.forEach((item) => {
+        // eslint-disable-next-line
+        item.price = 0;
+        // eslint-disable-next-line
+        item.origin_price = 0;
+      });
+      this.carData = cacheLocalStorage;
+      localStorage.setItem('carData', JSON.stringify(this.carData));
+      this.getLocalStorage();
+    },
+  },
+  computed: {
+    getPrice() {
+      // 若 carData 長度是空的就直接回傳 0
+      if (this.carData.length === 0) {
+        return 0;
+      }
+
+      // 當長度大於 1 的時候才計算回傳
+      if (this.carData.length > 1) {
+        let cachePrice = 0;
+        this.carData.forEach((item) => {
+          cachePrice += Number(item.price * item.qty);
+        });
+        return cachePrice;
+      }
+
+      // 當只有一筆的時候就直接回傳一筆的計算結果
+      return this.carData[0].price * this.carData[0].qty;
     },
   },
   // 取得產品列表與購物車內容
