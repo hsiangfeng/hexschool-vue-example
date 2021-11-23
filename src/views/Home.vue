@@ -138,6 +138,8 @@ export default {
     // 取得購物車內容
     getCarts() {
       this.isLoading = true;
+      this.cartsTotal = 0;
+      this.cartsFinalTotal = 0;
       this.axios.get(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`)
         .then((res) => {
           this.carts = res.data.data.carts;
@@ -211,32 +213,36 @@ export default {
           cacheData.forEach((item) => {
             cacheID.push(item.id);
           });
-        }).then(() => {
+        }).then(async () => {
           // 清空「當前購物車內」的資料，否則會重複加入
-          cacheID.forEach((item) => {
-            this.axios.delete(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart/${item}`).then(() => {
+          await Promise.all(cacheID.map((item) => {
+            console.log('準備清空購物車');
+            return this.axios.delete(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart/${item}`).then(() => {
               console.log('購物車已經清空');
             });
-          });
-        }).then(() => {
+          }));
+        }).then(async () => {
           // 將當前暫存在 carData 的資料撈出來
-          this.carData.forEach((item) => {
+          await Promise.all(this.carData.map((item) => {
             // 取出產品 id 與數量
             const cache = {
               product_id: item.product_id,
               qty: item.qty,
             };
-            // 一一加入到購物車內
-            this.axios.post(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`, { data: cache })
+              // 一一加入到購物車內
+            return this.axios.post(`${process.env.VUE_APP_APIPATH}/api/${process.env.VUE_APP_COUSTOMPATH}/cart`, { data: cache })
               .then(() => {
-                // 確保送出訂單之後清空購物車內容
-                this.carData = [];
-                localStorage.removeItem('carData');
-                this.isLoading = false;
-                // 重新取得購物車內容
-                this.getCarts();
+                console.log('加入成功。');
               });
-          });
+          }));
+        })
+        .then(() => {
+          // 確保送出訂單之後清空購物車內容
+          this.carData = [];
+          localStorage.removeItem('carData');
+          this.isLoading = false;
+          // 重新取得購物車內容
+          this.getCarts();
         });
     },
     // 清空購物車
